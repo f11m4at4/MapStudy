@@ -9,4 +9,6 @@ public class Map : MonoBehaviour
 
     //¹Ù´Ú Prefab
     public GameObject floorFactory;
+    //BlueCube Prefab
+    public GameObject blueCubeFactory;
 }

@@ -61,7 +61,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 8775f29ff06b083438683e309efc16b1, type: 2}
+  - {fileID: 2100000, guid: 79c6c042f75bb604fa0534a13cca5086, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -94,7 +94,7 @@ GameObject:
   - component: {fileID: 7246604009429928454}
   - component: {fileID: 6806387435154595492}
   m_Layer: 7
-  m_Name: BlueCube
+  m_Name: RedCube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

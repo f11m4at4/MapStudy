@@ -10,18 +10,25 @@ public class MapEditor : Editor
 {
     //target을 담을 변수
     Map map;
+    //map.objectList에 들어있는 애들의 이름
+    string[] objectListName;
+
     //해당 게임 오브젝트가 클릭되었을때 호출되는 함수
     private void OnEnable()
     {
         Debug.Log("선택됨");
         map = (Map)target;
+
+        //map.objectList에 들어있는 애들의 이름 셋팅
+        objectListName = new string[map.objectList.Length];
+        for (int i = 0; i < objectListName.Length; i++)
+            objectListName[i] = map.objectList[i].name;
     }
 
     //Inspector 에 변화가 있을때 호출되는 함수
     public override void OnInspectorGUI()
     {
         //base.OnInspectorGUI();
-
         //tileX, tileZ를 표현
         map.tileX = EditorGUILayout.IntField("타일 가로", map.tileX);
         EditorGUILayout.Space();
@@ -34,6 +41,18 @@ public class MapEditor : Editor
         map.floorFactory = (GameObject)EditorGUILayout.ObjectField("바닥", map.floorFactory, typeof(GameObject), false);
         //BlueCube Prefab 공간
         map.blueCubeFactory = (GameObject)EditorGUILayout.ObjectField("파란 큐브", map.blueCubeFactory, typeof(GameObject), false);
+
+        //objectList 공간
+        EditorGUI.ChangeCheckScope check = new EditorGUI.ChangeCheckScope();
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("objectList"));
+
+        if(check.changed)
+        {
+            serializedObject.ApplyModifiedProperties();
+        }
+
+        //만들 오브젝트 선택
+        map.selectObjIdx = EditorGUILayout.Popup("선택 오브젝트", map.selectObjIdx, objectListName);
 
         //바닥생성 버튼
         if (GUILayout.Button("바닥 생성"))
@@ -68,18 +87,31 @@ public class MapEditor : Editor
 
     void DeleteObject()
     {
+        Event e = Event.current;
         //만약에 왼쪽 마우스를 클릭했다면
         //만약에 ctrl키가 눌려있다면        
-        //Ray를 마우스 위치에서 쏴서
-        //맞은 게임오브젝트의 Layer가 Object라면 
-        //지우자
+        if(e.type == EventType.MouseDown && e.button == 0 && e.control)
+        {
+            //Ray를 마우스 위치에서 쏴서
+            Ray ray = HandleUtility.GUIPointToWorldRay(e.mousePosition);
+            RaycastHit hit;
+            if (Physics.Raycast(ray, out hit))
+            {
+                //맞은 게임오브젝트의 Layer가 Object라면 
+                if(hit.transform.gameObject.layer == LayerMask.NameToLayer("Object"))
+                {
+                    //지우자
+                    DestroyImmediate(hit.transform.gameObject);
+                }
+            }            
+        }
     }
 
     void CreateObject()
     {
         Event e = Event.current;
         //만약에 왼쪽 마우스를 클릭했다면
-        if(e.type == EventType.MouseDown && e.button == 0)
+        if(e.type == EventType.MouseDown && e.button == 0 && e.control == false)
         {
             //마우스 위치에 Ray를 만든다.
             Ray ray = HandleUtility.GUIPointToWorldRay(e.mousePosition);
@@ -91,7 +123,8 @@ public class MapEditor : Editor
                 if (hit.transform.gameObject.layer == LayerMask.NameToLayer("Floor"))
                 {
                     //해당 위치에 BlueCube를 생성해서 놓는다.
-                    GameObject obj = (GameObject)PrefabUtility.InstantiatePrefab(map.blueCubeFactory);
+                    GameObject obj = (GameObject)PrefabUtility.InstantiatePrefab(
+                        map.objectList[map.selectObjIdx]);
 
                     int x = (int)hit.point.x;
                     int z = (int)hit.point.z;

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 
 //누구를 Custom할거니?
 [CustomEditor(typeof(Map))]
@@ -28,12 +29,50 @@ public class MapEditor : Editor
         //tileX, tileZ (1~100)
         map.tileX = Mathf.Clamp(map.tileX, 1, 100);
         map.tileZ = Mathf.Clamp(map.tileZ, 1, 100);
+
+        //바닥 Prefab 공간
+        map.floorFactory = (GameObject)EditorGUILayout.ObjectField("바닥", map.floorFactory, typeof(GameObject), false);
+
+        //바닥생성 버튼
+        if(GUILayout.Button("바닥 생성"))
+        {
+            CreateFloor();
+        }
+
+        //인스펙터에 변경사항이 생긴다면
+        if(GUI.changed)
+        {
+            //Hierarchy의 Scene이름 옆에 *표시 나오게 하자
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+
+            //Scene화면을 다시 그리자
+            SceneView.RepaintAll();
+        }
     }
 
     //Scene 화면을 그리는 함수
     private void OnSceneGUI()
     {
         DrawGrid();
+    }
+
+    void CreateFloor()
+    {
+        //Floor게임 오브젝트를 찾자
+        GameObject floor = GameObject.Find("Floor");
+        //만약에 이전에 작업하던 floor가 존재한다면
+        if(floor != null)
+        {            
+            //파괴하자
+            DestroyImmediate(floor);
+        }
+
+        //prefab 과 연결되지않은 게임오브젝트
+        //Instantiate(map.floorFactory);
+        //prefab 과 연결된 게임오브젝트
+        floor = (GameObject)PrefabUtility.InstantiatePrefab(map.floorFactory);
+        //tileX, tileZ의 값으로 floor의 크기 값을 조절
+        floor.transform.localScale = new Vector3(map.tileX, 1, map.tileZ);
     }
 
     void DrawGrid()

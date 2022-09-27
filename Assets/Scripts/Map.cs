@@ -6,4 +6,7 @@ public class Map : MonoBehaviour
 {
     public int tileX;
     public int tileZ;
+
+    //¹Ù´Ú Prefab
+    public GameObject floorFactory;
 }

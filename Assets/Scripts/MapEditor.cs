@@ -103,6 +103,17 @@ public class MapEditor : Editor
 
     void LoadJson()
     {
+        //만약에 saveFileName 의 길이가 0이라면 
+        if(saveFileName.Length <= 0)
+        {
+            //파일이름을 입력하세요.
+            Debug.LogError("파일 이름을 입력하세요.");
+            return;
+        }
+
+        //이전 맵 데이터를 삭제
+        CreateFloor();
+
         //mapData.txt를 불러오기
         string jsonData = File.ReadAllText(Application.dataPath + "/" + saveFileName +".txt");
         //ArrayJson 형태로 Json을 변환
@@ -117,6 +128,14 @@ public class MapEditor : Editor
 
     void SaveJson()
     {
+        //만약에 saveFileName 의 길이가 0이라면 
+        if (saveFileName.Length <= 0)
+        {
+            //파일이름을 입력하세요.
+            Debug.LogError("파일 이름을 입력하세요.");
+            return;
+        }
+
         //map.createdObjects 에 있는 정보를 json으로 변환
         //idx, postion, eulerAngle, localScale
         //map.createdObjects 의 갯수만큼 SaveJsonInfo 만들어서 셋팅
@@ -159,8 +178,18 @@ public class MapEditor : Editor
                 //맞은 게임오브젝트의 Layer가 Object라면 
                 if(hit.transform.gameObject.layer == LayerMask.NameToLayer("Object"))
                 {
+                    //map.createdObjects 에서 hit.transform.gameObject 를 찾아서 빼주자
+                    for(int i = 0; i < map.createdObjects.Count; i++)
+                    {
+                        if(map.createdObjects[i].go == hit.transform.gameObject)
+                        {
+                            map.createdObjects.RemoveAt(i);
+                            break;
+                        }
+                    }
+
                     //지우자
-                    DestroyImmediate(hit.transform.gameObject);
+                    DestroyImmediate(hit.transform.gameObject);                   
                 }
             }            
         }

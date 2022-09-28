@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using System.IO;
 
 //누구를 Custom할거니?
 [CustomEditor(typeof(Map))]
@@ -12,6 +13,9 @@ public class MapEditor : Editor
     Map map;
     //map.objectList에 들어있는 애들의 이름
     string[] objectListName;
+
+    //저장 파일 이름
+    string saveFileName;
 
     //해당 게임 오브젝트가 클릭되었을때 호출되는 함수
     private void OnEnable()
@@ -45,8 +49,8 @@ public class MapEditor : Editor
         //objectList 공간
         EditorGUI.ChangeCheckScope check = new EditorGUI.ChangeCheckScope();
         EditorGUILayout.PropertyField(serializedObject.FindProperty("objectList"));
-
-        if(check.changed)
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("createdObjects"));
+        if (check.changed)
         {
             serializedObject.ApplyModifiedProperties();
         }
@@ -58,6 +62,18 @@ public class MapEditor : Editor
         if (GUILayout.Button("바닥 생성"))
         {
             CreateFloor();
+        }
+
+        saveFileName = EditorGUILayout.TextField("저장파일이름", saveFileName);
+        //Json저장 버튼
+        if(GUILayout.Button("Json 저장"))
+        {
+            SaveJson();
+        }
+        //Json불러오기 버튼
+        if (GUILayout.Button("Json 불러오기"))
+        {
+            LoadJson();
         }
 
         //인스펙터에 변경사항이 생긴다면
@@ -85,6 +101,49 @@ public class MapEditor : Editor
         DeleteObject();
     }
 
+    void LoadJson()
+    {
+        //mapData.txt를 불러오기
+        string jsonData = File.ReadAllText(Application.dataPath + "/" + saveFileName +".txt");
+        //ArrayJson 형태로 Json을 변환
+        ArrayJson arrayJson = JsonUtility.FromJson<ArrayJson>(jsonData);
+        //ArrayJson의 데이터를 가지고 오브젝트 생성
+        for(int i = 0; i < arrayJson.datas.Count; i++)
+        {
+            SaveJsonInfo info = arrayJson.datas[i];
+            LoadObject(info.idx, info.position, info.eulerAngle, info.localScale);
+        }
+    }
+
+    void SaveJson()
+    {
+        //map.createdObjects 에 있는 정보를 json으로 변환
+        //idx, postion, eulerAngle, localScale
+        //map.createdObjects 의 갯수만큼 SaveJsonInfo 만들어서 셋팅
+        //ArrayJson 만든다.
+        ArrayJson arrayJson = new ArrayJson();
+        arrayJson.datas = new List<SaveJsonInfo>();
+
+        SaveJsonInfo info;
+        for(int i = 0; i < map.createdObjects.Count; i++)
+        {
+            CreatedInfo createdInfo = map.createdObjects[i];
+
+            info = new SaveJsonInfo();
+            info.idx = createdInfo.idx;
+            info.position = createdInfo.go.transform.position;
+            info.eulerAngle = createdInfo.go.transform.eulerAngles;
+            info.localScale = createdInfo.go.transform.localScale;
+            //ArrayJson 의 datas 에 하나씩 추가
+            arrayJson.datas.Add(info);
+        }
+        //arrayJson을 Json으로 변환
+        string jsonData = JsonUtility.ToJson(arrayJson, true);
+        Debug.Log("jsonData : " + jsonData);
+        //jsonData를 파일로 저장
+        File.WriteAllText(Application.dataPath + "/" + saveFileName + ".txt", jsonData);
+    }
+
     void DeleteObject()
     {
         Event e = Event.current;
@@ -107,6 +166,27 @@ public class MapEditor : Editor
         }
     }
 
+    void LoadObject(int idx, Vector3 position, Vector3 eulerAngle, Vector3 localScale)
+    {
+        //해당 위치에 BlueCube를 생성해서 놓는다.
+        GameObject obj = (GameObject)PrefabUtility.InstantiatePrefab(
+            map.objectList[idx]);
+
+        obj.transform.position = position;
+        obj.transform.eulerAngles = eulerAngle;
+        obj.transform.localScale = localScale;
+
+        //부모를 obj_parent 으로 하자
+        obj.transform.parent = GameObject.Find("obj_parent").transform;
+
+
+        //만들어진 오브젝트를 리스트에 추가
+        CreatedInfo info = new CreatedInfo();
+        info.go = obj;
+        info.idx = idx;
+        map.createdObjects.Add(info);
+    }
+
     void CreateObject()
     {
         Event e = Event.current;
@@ -122,17 +202,8 @@ public class MapEditor : Editor
                 //만약에 부딪힌 놈의 Layer가 Floor일 때
                 if (hit.transform.gameObject.layer == LayerMask.NameToLayer("Floor"))
                 {
-                    //해당 위치에 BlueCube를 생성해서 놓는다.
-                    GameObject obj = (GameObject)PrefabUtility.InstantiatePrefab(
-                        map.objectList[map.selectObjIdx]);
-
-                    int x = (int)hit.point.x;
-                    int z = (int)hit.point.z;
-
-                    obj.transform.position = new Vector3(x, hit.point.y, z);
-
-                    //부모를 바닥으로 하자
-                    obj.transform.parent = GameObject.Find("Floor").transform;
+                    Vector3 p = new Vector3((int)hit.point.x, hit.point.y, (int)hit.point.z);
+                    LoadObject(map.selectObjIdx, p, Vector3.zero, Vector3.one);
                 }
             }
         }        
@@ -149,12 +220,24 @@ public class MapEditor : Editor
             DestroyImmediate(floor);
         }
 
+        GameObject empty = GameObject.Find("obj_parent");
+        if(empty != null)
+        {
+            DestroyImmediate(empty);
+        }
+
+        //빈 오브젝트(배치한 오브젝트들의 부모)
+        empty = new GameObject();
+        empty.name = "obj_parent";
+
         //prefab 과 연결되지않은 게임오브젝트
         //Instantiate(map.floorFactory);
         //prefab 과 연결된 게임오브젝트
         floor = (GameObject)PrefabUtility.InstantiatePrefab(map.floorFactory);
         //tileX, tileZ의 값으로 floor의 크기 값을 조절
         floor.transform.localScale = new Vector3(map.tileX, 1, map.tileZ);
+        //만들어진 오브젝트 리스트 지우자
+        map.createdObjects.Clear();
     }
 
     void DrawGrid()
